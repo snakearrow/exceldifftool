@@ -17,7 +17,7 @@ def csv_from_excel(excel_file):
         filename = u'{}_{}.csv'.format(excel_file, worksheet_name)
         filenames.append(filename)
         with open(filename, 'w') as your_csv_file:
-            wr = csv.writer(your_csv_file, quoting=csv.QUOTE_ALL)
+            wr = csv.writer(your_csv_file, quoting=csv.QUOTE_ALL, lineterminator='\n')
             for rownum in range(worksheet.nrows):
                 wr.writerow([entry for entry in worksheet.row_values(rownum)])
                 
