@@ -2,8 +2,6 @@ import xlrd
 import csv
 import os
 from os import sys
-from PyQt5.QtWidgets import QApplication
-from exdiffvisualizer import *
 
 def csv_from_excel(excel_file):
     worksheets = []
@@ -104,24 +102,26 @@ def do_diff(filename1, filename2):
             
     print('-'*60)
     print("\n")
+    print(diff)
     return diff
     
 def remove_csvs(filenames):
     for f in filenames:
-        os.remove(f)
+        try:
+            os.remove(f)
+        except FileNotFoundError:
+            continue
     
-if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        exit(0)
-        
-    files1, filenames1 = csv_from_excel(sys.argv[1])
-    files2, filenames2 = csv_from_excel(sys.argv[2])
+def run(filename1, filename2):
+    files1, filenames1 = csv_from_excel(filename1)
+    files2, filenames2 = csv_from_excel(filename2)
     diffs = filter_diffs(files1, files2)
     
     csv1 = [line.rstrip() for line in open(filenames1[0], 'r')]
     csv2 = [line.rstrip() for line in open(filenames2[0], 'r')]
     
-    app = QApplication(sys.argv)
-    ex = App(sys.argv[1], sys.argv[2], csv1, csv2, do_diff(diffs[0][0], diffs[0][1]))
+    diffs = do_diff(diffs[0][0], diffs[0][1])
+    
     remove_csvs(filenames1 + filenames2)
-    sys.exit(app.exec_())
+    return csv1, csv2, diffs
+    

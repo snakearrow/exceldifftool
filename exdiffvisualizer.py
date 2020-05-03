@@ -1,30 +1,34 @@
 import sys
-import re
-from PyQt5.QtWidgets import QMainWindow, QApplication, QWidget, QTextEdit, QAction, QLabel, QFrame, QTableWidget,QTableWidgetItem,QVBoxLayout,QHBoxLayout,QScrollArea
+import ntpath
+from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, Qt
 from PyQt5 import QtWidgets, QtGui
+from exdifftool import run
 
 def color_table_row(table, rowIndex, color):
     for j in range(table.columnCount()):
-        table.item(rowIndex, j).setBackground(color)
+        if table.item(rowIndex, j):
+            table.item(rowIndex, j).setBackground(color)
 
 class App(QWidget):
 
-    def __init__(self, left_file, right_file, left_csv, right_csv, diffs):
+    def __init__(self):
         super().__init__()
         self.title = 'Excel Diff Tool'
         self.left = 0
         self.top = 0
         self.width = 1650
         self.height = 800
-        self.left_filename = left_file
-        self.right_filename = right_file
+        self.left_filename = ""
+        self.right_filename = ""
         self.initUI()
+        
+    def update(self, left_csv, right_csv, diffs):
+    
         self.fill_table(self.tableWidgetL, left_csv)
         self.fill_table(self.tableWidgetR, right_csv)
         self.color_tables(diffs)
-        
         
     def fill_table(self, tableWidget, csv):
         j = 0
@@ -58,7 +62,7 @@ class App(QWidget):
                 color_table_row(self.tableWidgetR, col2, QtGui.QColor(255, 255, 200))
             elif op == "add":
                 if col1 != -1:
-                    color_table_row(self.tableWidgetR, col1, QtGui.QColor(200, 255, 200))
+                    color_table_row(self.tableWidgetL, col1, QtGui.QColor(200, 255, 200))
                 elif col2 != -1:
                     color_table_row(self.tableWidgetR, col2, QtGui.QColor(200, 255, 200))
         
@@ -82,21 +86,17 @@ class App(QWidget):
         self.tableWidgetR.verticalScrollBar().valueChanged.connect(self.tableWidgetL.verticalScrollBar().setValue)
         
         # left side
-        labelL = QLabel(self)
-        labelL.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        labelL.setText(self.left_filename)
-        labelL.setAlignment(Qt.AlignBottom | Qt.AlignCenter)
-        layoutL.addWidget(labelL)
+        self.loadButtonL = QPushButton("<click to select file 1>", self)
+        self.loadButtonL.clicked.connect(self.openFileNameDialogLeft)
+        layoutL.addWidget(self.loadButtonL)
         scrollL.setWidgetResizable(True)
         scrollL.setWidget(self.tableWidgetL)
         layoutL.addWidget(scrollL)
         
         # right side
-        labelR = QLabel(self)
-        labelR.setFrameStyle(QFrame.Panel | QFrame.Raised)
-        labelR.setText(self.right_filename)
-        labelR.setAlignment(Qt.AlignBottom | Qt.AlignCenter)
-        layoutR.addWidget(labelR)
+        self.loadButtonR = QPushButton("<click to select file 2>", self)
+        self.loadButtonR.clicked.connect(self.openFileNameDialogRight)
+        layoutR.addWidget(self.loadButtonR)
         scrollR.setWidgetResizable(True)
         scrollR.setWidget(self.tableWidgetR)
         layoutR.addWidget(scrollR)
@@ -121,4 +121,35 @@ class App(QWidget):
         self.tableWidgetR.move(0,0)
         self.tableWidgetR.setRowCount(10)
         self.tableWidgetR.setColumnCount(10)
- 
+        
+    def openFileNameDialogLeft(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Excel Files (*.xlsx)", options=options)
+        if fileName:
+            self.left_filename = fileName
+            self.loadButtonL.setText(ntpath.basename(fileName))
+            if self.right_filename:
+                # do diff
+                self.doDiff()
+                
+    def openFileNameDialogRight(self):
+        options = QFileDialog.Options()
+        options |= QFileDialog.DontUseNativeDialog
+        fileName, _ = QFileDialog.getOpenFileName(self,"QFileDialog.getOpenFileName()", "","All Files (*);;Excel Files (*.xlsx)", options=options)
+        if fileName:
+            self.right_filename = fileName
+            self.loadButtonR.setText(ntpath.basename(fileName))
+            if self.left_filename:
+                # do diff
+                self.doDiff()
+                
+    def doDiff(self):
+        csv1, csv2, diffs = run(self.left_filename, self.right_filename)
+        self.update(csv1, csv2, diffs)
+
+        
+if __name__ == "__main__":
+    app = QApplication(sys.argv)
+    ex = App()
+    sys.exit(app.exec_())
