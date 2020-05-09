@@ -49,6 +49,24 @@ def lines_equal(line1, line2):
             
     return True
     
+def neq_details(row_num, line1, line2):
+    cells1 = line1.split(",")
+    cells2 = line2.split(",")
+    details = []
+    
+    for i in range(max(len(cells1), len(cells2))):
+        cell1 = ""
+        cell2 = ""
+        if i < len(cells1):
+            cell1 = cells1[i]
+        if i < len(cells2):
+            cell2 = cells2[i]
+            
+        if cell1 != cell2:
+            details.append("neqd {}:{}".format(row_num, i)) # format: neqd row:col
+            
+    return details
+
 def do_diff(filename1, filename2):
     print("\n*** do_diff of " + filename1 + " and " + filename2 + " ***")
     print(filename1 + "   **************   " + filename2)
@@ -70,17 +88,17 @@ def do_diff(filename1, filename2):
         # line2 was added in file2 and does not exist in file1
         if not line1:
             print('<empty>{}{}:{}'.format(' '*35, i+1, line2))
-            diff.append(["add {}:{}".format("-1", i)])
+            diff.append("add {}:{}".format("-1", i))
         # line1 was added in file1 and does not exist in file2
         if not line2:
             print('{}:{}{}<empty>'.format(i+1, line1, ' '*35))
-            diff.append(["add {}:{}".format(i, "-1")])
+            diff.append("add {}:{}".format(i, "-1"))
             
         # both lines are present
         if line1 and line2:
             if lines_equal(line1, line2):
                 print('{}:{} <equal>'.format(i+1, i+1))
-                diff.append(["eq {}:{}".format(i, i)])
+                diff.append("eq {}:{}".format(i, i))
                 continue
             
             # check if line was merely moved but still exists
@@ -89,7 +107,7 @@ def do_diff(filename1, filename2):
             for l in lines2:
                 if lines_equal(l, line1):
                     print('{}:{} <moved> {}:{}'.format(i+1, line1, k, l))
-                    diff.append(["mv {}:{}".format(i, k)])
+                    diff.append("mv {}:{}".format(i, k))
                     found = True
                     break
                 k += 1
@@ -98,7 +116,8 @@ def do_diff(filename1, filename2):
                 
             # check if content differs
             print('{}:{} <neq> {}:{}'.format(i+1, line1, i+1, line2))
-            diff.append(["neq {}:{}".format(i, i)])
+            for d in neq_details(i, line1, line2):
+                diff.append(d)
             
     print('-'*60)
     print("\n")
