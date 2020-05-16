@@ -1,10 +1,11 @@
 import sys
 import ntpath
+import logging
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import pyqtSlot, Qt
 from PyQt5 import QtWidgets, QtGui
-from exdifftool import run
+from exdifftool import run, get_sheet_names, get_row_and_cols_of_csv
 
 def color_table_row(table, row, color):
     for j in range(table.columnCount()):
@@ -19,6 +20,7 @@ class App(QWidget):
 
     def __init__(self):
         super().__init__()
+        logging.basicConfig(stream=sys.stderr, level=logging.INFO)
         self.title = 'Excel Diff Tool'
         self.left = 0
         self.top = 0
@@ -26,15 +28,20 @@ class App(QWidget):
         self.height = 800
         self.left_filename = ""
         self.right_filename = ""
+        self.left_sheet = -1
+        self.right_sheet = -1
         self.initUI()
         
     def update(self, left_csv, right_csv, diffs):
-    
         self.fill_table(self.tableWidgetL, left_csv)
         self.fill_table(self.tableWidgetR, right_csv)
         self.color_tables(diffs)
         
     def fill_table(self, tableWidget, csv):
+        n_rows, n_cols = get_row_and_cols_of_csv(csv)
+        tableWidget.setRowCount(n_rows)
+        tableWidget.setColumnCount(n_cols)
+        
         j = 0
         for row in csv:
             cells = row.split(",")
@@ -44,12 +51,8 @@ class App(QWidget):
                 i += 1
             j += 1
         
-        tableWidget.setRowCount(j)
-        tableWidget.setColumnCount(i)
-        header = tableWidget.horizontalHeader()       
-        header.setSectionResizeMode(0, QtWidgets.QHeaderView.Stretch)
-        header.setSectionResizeMode(1, QtWidgets.QHeaderView.ResizeToContents)
-        header.setSectionResizeMode(2, QtWidgets.QHeaderView.ResizeToContents)
+        header = tableWidget.horizontalHeader()
+        header.setSectionResizeMode(QtWidgets.QHeaderView.ResizeToContents)
         tableWidget.setEditTriggers(QtWidgets.QTableWidget.NoEditTriggers)
         
     def color_tables(self, diffs):
@@ -93,14 +96,23 @@ class App(QWidget):
         self.loadButtonL = QPushButton("<click to select file 1>", self)
         self.loadButtonL.clicked.connect(self.openFileNameDialogLeft)
         layoutL.addWidget(self.loadButtonL)
+        self.sheetCBoxL = QComboBox(self)
+        self.sheetCBoxL.addItem("Sheet 1")
+        self.sheetCBoxL.currentIndexChanged.connect(self.leftSheetSelected)
+        layoutL.addWidget(self.sheetCBoxL)
         scrollL.setWidgetResizable(True)
         scrollL.setWidget(self.tableWidgetL)
         layoutL.addWidget(scrollL)
+        
         
         # right side
         self.loadButtonR = QPushButton("<click to select file 2>", self)
         self.loadButtonR.clicked.connect(self.openFileNameDialogRight)
         layoutR.addWidget(self.loadButtonR)
+        self.sheetCBoxR = QComboBox(self)
+        self.sheetCBoxR.addItem("Sheet 1")
+        self.sheetCBoxR.currentIndexChanged.connect(self.rightSheetSelected)
+        layoutR.addWidget(self.sheetCBoxR)
         scrollR.setWidgetResizable(True)
         scrollR.setWidget(self.tableWidgetR)
         layoutR.addWidget(scrollR)
@@ -136,6 +148,14 @@ class App(QWidget):
 
         # Show widget
         self.show()
+        
+    def rightSheetSelected(self):
+        self.right_sheet = self.sheetCBoxR.currentIndex()
+        self.doDiff()
+        
+    def leftSheetSelected(self):
+        self.left_sheet = self.sheetCBoxL.currentIndex()
+        self.doDiff()
 
     def createTableLeft(self):
        # Create table
@@ -158,9 +178,11 @@ class App(QWidget):
         if fileName:
             self.left_filename = fileName
             self.loadButtonL.setText(ntpath.basename(fileName))
-            if self.right_filename:
-                # do diff
-                self.doDiff()
+            # set sheet names
+            sheet_names = get_sheet_names(fileName)
+            self.sheetCBoxL.clear()
+            for s in sheet_names:
+                self.sheetCBoxL.addItem(s)
                 
     def openFileNameDialogRight(self):
         options = QFileDialog.Options()
@@ -169,13 +191,16 @@ class App(QWidget):
         if fileName:
             self.right_filename = fileName
             self.loadButtonR.setText(ntpath.basename(fileName))
-            if self.left_filename:
-                # do diff
-                self.doDiff()
+            # set sheet names
+            sheet_names = get_sheet_names(fileName)
+            self.sheetCBoxR.clear()
+            for s in sheet_names:
+                self.sheetCBoxR.addItem(s)
                 
     def doDiff(self):
-        csv1, csv2, diffs = run(self.left_filename, self.right_filename)
-        self.update(csv1, csv2, diffs)
+        if self.left_filename and self.right_filename and self.left_sheet >= 0 and self.right_sheet >= 0:
+            csv1, csv2, diffs = run(self.left_filename, self.right_filename, self.left_sheet, self.right_sheet)
+            self.update(csv1, csv2, diffs)
 
         
 if __name__ == "__main__":

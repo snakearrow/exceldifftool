@@ -1,8 +1,10 @@
 import xlrd
 import csv
 import os
+import logging
 from os import sys
 
+# convert excel files to csv and write csv files
 def csv_from_excel(excel_file):
     worksheets = []
     filenames = []
@@ -22,6 +24,12 @@ def csv_from_excel(excel_file):
     written_csvs = {excel_file : worksheets}
     return written_csvs, filenames
 
+def get_sheet_names(excel_file):
+    written_csvs, filenames = csv_from_excel(excel_file)
+    remove_csvs(filenames)
+    return list(written_csvs.values())[0]
+    
+# find matching sheets
 def filter_diffs(files1, files2):
     diffs = []
     for excel1, sheets1 in files1.items():
@@ -35,6 +43,7 @@ def filter_diffs(files1, files2):
                         diffs.append(t)
     return diffs
 
+# returns True if two rows are equal
 def lines_equal(line1, line2):
     cells1 = line1.split(",")
     cells2 = line2.split(",")
@@ -48,7 +57,8 @@ def lines_equal(line1, line2):
             return False
             
     return True
-    
+
+# finds the cells which are not equal    
 def neq_details(row_num, line1, line2):
     cells1 = line1.split(",")
     cells2 = line2.split(",")
@@ -68,9 +78,9 @@ def neq_details(row_num, line1, line2):
     return details
 
 def do_diff(filename1, filename2):
-    print("\n*** do_diff of " + filename1 + " and " + filename2 + " ***")
-    print(filename1 + "   **************   " + filename2)
-    print('-'*60)
+    logging.debug("\n*** do_diff of " + filename1 + " and " + filename2 + " ***")
+    logging.debug(filename1 + "   **************   " + filename2)
+    logging.debug('-'*60)
     
     diff = []
     
@@ -87,17 +97,17 @@ def do_diff(filename1, filename2):
         
         # line2 was added in file2 and does not exist in file1
         if not line1:
-            print('<empty>{}{}:{}'.format(' '*35, i+1, line2))
+            logging.debug('<empty>{}{}:{}'.format(' '*35, i+1, line2))
             diff.append("add {}:{}".format("-1", i))
         # line1 was added in file1 and does not exist in file2
         if not line2:
-            print('{}:{}{}<empty>'.format(i+1, line1, ' '*35))
+            logging.debug('{}:{}{}<empty>'.format(i+1, line1, ' '*35))
             diff.append("add {}:{}".format(i, "-1"))
             
         # both lines are present
         if line1 and line2:
             if lines_equal(line1, line2):
-                print('{}:{} <equal>'.format(i+1, i+1))
+                logging.debug('{}:{} <equal>'.format(i+1, i+1))
                 diff.append("eq {}:{}".format(i, i))
                 continue
             
@@ -106,7 +116,7 @@ def do_diff(filename1, filename2):
             k = 0
             for l in lines2:
                 if lines_equal(l, line1):
-                    print('{}:{} <moved> {}:{}'.format(i+1, line1, k, l))
+                    logging.debug('{}:{} <moved> {}:{}'.format(i+1, line1, k, l))
                     diff.append("mv {}:{}".format(i, k))
                     found = True
                     break
@@ -115,14 +125,21 @@ def do_diff(filename1, filename2):
                 continue
                 
             # check if content differs
-            print('{}:{} <neq> {}:{}'.format(i+1, line1, i+1, line2))
+            logging.debug('{}:{} <neq> {}:{}'.format(i+1, line1, i+1, line2))
             for d in neq_details(i, line1, line2):
                 diff.append(d)
             
-    print('-'*60)
-    print("\n")
-    print(diff)
+    logging.debug('-'*60)
+    logging.debug("\n")
+    logging.debug(diff)
     return diff
+
+def get_row_and_cols_of_csv(csv):
+    rows = len(csv)
+    cols = []
+    for r in csv:
+        cols.append(len(r.split(",")))
+    return rows, max(cols)
     
 def remove_csvs(filenames):
     for f in filenames:
@@ -131,15 +148,15 @@ def remove_csvs(filenames):
         except FileNotFoundError:
             continue
     
-def run(filename1, filename2):
+def run(filename1, filename2, sheet1, sheet2):
     files1, filenames1 = csv_from_excel(filename1)
     files2, filenames2 = csv_from_excel(filename2)
     diffs = filter_diffs(files1, files2)
     
-    csv1 = [line.rstrip() for line in open(filenames1[0], 'r')]
-    csv2 = [line.rstrip() for line in open(filenames2[0], 'r')]
+    csv1 = [line.rstrip() for line in open(filenames1[sheet1], 'r')]
+    csv2 = [line.rstrip() for line in open(filenames2[sheet2], 'r')]
     
-    diffs = do_diff(diffs[0][0], diffs[0][1])
+    diffs = do_diff(filenames1[sheet1], filenames2[sheet2])
     
     remove_csvs(filenames1 + filenames2)
     return csv1, csv2, diffs
