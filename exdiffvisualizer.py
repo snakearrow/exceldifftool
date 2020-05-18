@@ -200,6 +200,7 @@ class App(QWidget):
     def doDiff(self):
         if self.left_filename and self.right_filename and self.left_sheet >= 0 and self.right_sheet >= 0:
             csv1, csv2, diffs = run(self.left_filename, self.right_filename, self.left_sheet, self.right_sheet)
+            print(diffs)
             self.update(csv1, csv2, diffs)
 
         

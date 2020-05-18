@@ -47,8 +47,8 @@ def filter_diffs(files1, files2):
 def lines_equal(line1, line2):
     cells1 = line1.split(",")
     cells2 = line2.split(",")
-    cells1 = [i for i in cells1 if i != '""' and i]
-    cells2 = [i for i in cells2 if i != '""' and i]
+    cells1 = [i for i in cells1 if i]
+    cells2 = [i for i in cells2 if i]
     if len(cells1) != len(cells2):
         return False
     
